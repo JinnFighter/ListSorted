@@ -51,12 +51,48 @@ namespace ListSorted
                 var listFromFile = new ListRand();
                 listFromFile.Deserialize(fileStream);
 
-                var isIntegrityIntact = CheckIntegrity(listRand, listFromFile);
-                Console.WriteLine(isIntegrityIntact ? "List integrity is intact" : "List integrity failed");
+                var isIntegrityIntact = CheckIntegrity(listRand, listFromFile, out var reason);
+                Console.WriteLine(isIntegrityIntact ? "List integrity is intact" : $"List integrity failed: {reason}");
             }
 
-            bool CheckIntegrity(ListRand original, ListRand other)
+            bool CheckIntegrity(ListRand original, ListRand other, out string reason)
             {
+                reason = "";
+                
+                if (original.Count != other.Count)
+                {
+                    reason = $"List item counts do not match, original: {original.Count}, new {other.Count}";
+                    return false;
+                }
+
+                if (other.Head == null)
+                {
+                    reason = "Head is null";
+                    return false;
+                }
+
+                if (other.Tail == null)
+                {
+                    reason = "Tail is null";
+                    return false;
+                }
+
+                var currentNode = other.Head;
+                var originalCurrentNode = original.Head;
+                var index = 0;
+                while (currentNode != null)
+                {
+                    if (currentNode.Data != originalCurrentNode.Data)
+                    {
+                        reason = $"Data strings do not match, original: {originalCurrentNode.Data}, new: {currentNode.Data}, node index: {index}";
+                        return false;
+                    }
+                    
+                    currentNode = currentNode.Next;
+                    originalCurrentNode = originalCurrentNode.Next;
+                    index++;
+                }
+
                 return true;
             }
         }
@@ -140,8 +176,7 @@ namespace ListSorted
                 //Read Item Count from stream
                 var count = BitConverter.ToInt32(TryRead(4), 0);
                 Count = count;
-                Console.Write(Count);
-                
+
                 //Read Data and random links from stream
                 //Also create nodes 
                 var nodes = new Dictionary<int, ListNode>();
