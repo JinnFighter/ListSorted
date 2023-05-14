@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace ListSorted
 {
@@ -46,6 +47,7 @@ namespace ListSorted
             {
                 listRand.Serialize(fileStream);
 
+                fileStream.Seek(0, SeekOrigin.Begin);
                 var listFromFile = new ListRand();
                 listFromFile.Deserialize(fileStream);
 
@@ -76,7 +78,22 @@ namespace ListSorted
 
             public void Serialize(FileStream s)
             {
-                //write item count
+                void TryWrite(byte[] data)
+                {
+                    if (!s.CanWrite)
+                    {
+                        throw new Exception("Could not write data to fileStream: stream is not available for writing");
+                    }
+                    
+                    s.Write(data, 0, data.Length);
+                }
+
+                if (s.Position != 0)
+                {
+                    s.Seek(0, SeekOrigin.Begin);
+                }
+                
+                //Assign ids to each of the nodes in the list:
                 var id = 0;
                 var nodeIds = new Dictionary<ListNode, int>();
                 var currentNode = Head;
@@ -86,25 +103,44 @@ namespace ListSorted
                     id++;
                     currentNode = currentNode.Next;
                 }
-
+                
+                TryWrite(BitConverter.GetBytes(Count));
                 currentNode = Head;
                 while (currentNode != null)
                 {
-                    if (currentNode.Rand != null)
-                    {
-                        var linkedIndex = nodeIds[currentNode.Rand];
-                        //write data and linked index to stream;
-                    }
-
+                    var dataBytes = Encoding.UTF8.GetBytes(currentNode.Data);
+                    TryWrite(BitConverter.GetBytes(dataBytes.Length));
+                    TryWrite(dataBytes);
+                    var linkedIndex = currentNode.Rand != null ? nodeIds[currentNode.Rand] : -1;
+                    TryWrite(BitConverter.GetBytes(linkedIndex));
+                    
                     currentNode = currentNode.Next;
                 }
             }
 
             public void Deserialize(FileStream s)
             {
+                byte[] TryRead(int byteCount)
+                {
+                    if (!s.CanRead)
+                    {
+                        throw new Exception("Could not read from file stream: file is not available for reading");
+                    }
+
+                    var buffer = new byte[byteCount];
+                    s.Read(buffer, 0, byteCount);
+                    return buffer;
+                }
+                
+                if (s.Position != 0)
+                {
+                    s.Seek(0, SeekOrigin.Begin);
+                }
+                
                 //Read Item Count from stream
-                var count = 8; //read count from stream;
+                var count = BitConverter.ToInt32(TryRead(4), 0);
                 Count = count;
+                Console.Write(Count);
                 
                 //Read Data and random links from stream
                 //Also create nodes 
@@ -112,8 +148,10 @@ namespace ListSorted
                 var linkedNodes = new Dictionary<int, int>();
                 for (var i = 0; i < count; i++)
                 {
-                    var data = "data"; //read data from stream;
-                    var linkedNode = -1; //read link id from stream;
+                    var dataBytesCount = BitConverter.ToInt32(TryRead(4), 0);
+                    var data = Encoding.UTF8.GetString(TryRead(dataBytesCount));
+                    var linkedNode = -1;
+                    BitConverter.ToInt32(TryRead(4), 0);
 
                     var node = new ListNode
                     {
