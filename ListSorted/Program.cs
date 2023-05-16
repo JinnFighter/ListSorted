@@ -39,6 +39,103 @@ namespace ListSorted
             return listRand;
         }
 
+        private static bool CheckIntegrity(ListRand original, ListRand other, out string reason)
+        {
+            reason = "";
+
+            if (original.Count != other.Count)
+            {
+                reason = $"List item counts do not match, original: {original.Count}, new {other.Count}";
+                return false;
+            }
+
+            if (other.Head == null)
+            {
+                reason = "Head is null";
+                return false;
+            }
+
+            if (other.Tail == null)
+            {
+                reason = "Tail is null";
+                return false;
+            }
+
+
+            var originalNodeIds = new Dictionary<ListNode, int>();
+            var currentNodeIds = new Dictionary<ListNode, int>();
+            var currentNode = other.Head;
+            var originalCurrentNode = original.Head;
+            var index = 0;
+            while (currentNode != null)
+            {
+                if (currentNode.Data != originalCurrentNode.Data)
+                {
+                    reason =
+                        $"Data strings do not match, original: {originalCurrentNode.Data}, new: {currentNode.Data}, index: {index}";
+                    return false;
+                }
+
+                originalNodeIds[originalCurrentNode] = index;
+                currentNodeIds[currentNode] = index;
+                currentNode = currentNode.Next;
+                originalCurrentNode = originalCurrentNode.Next;
+                index++;
+            }
+
+            currentNode = other.Head;
+            originalCurrentNode = original.Head;
+            index = 0;
+
+            while (currentNode != null && originalCurrentNode != null)
+            {
+                if (currentNode.Prev == null != (originalCurrentNode.Prev == null))
+                {
+                    reason = $"Prev links do not match, index: {index}";
+                    return false;
+                }
+
+                if (currentNode.Next == null != (originalCurrentNode.Next == null))
+                {
+                    reason = $"Next links do not match, index: {index}";
+                    return false;
+                }
+
+                if (currentNode.Rand == null != (originalCurrentNode.Rand == null))
+                {
+                    reason = $"Rand links do not match, index: {index}";
+                    return false;
+                }
+
+                if (currentNode.Rand != null && originalCurrentNode.Rand != null)
+                {
+                    var currentRandId = currentNodeIds[currentNode.Rand];
+                    var originalRandId = originalNodeIds[originalCurrentNode.Rand];
+                    if (currentRandId != originalRandId)
+                    {
+                        reason = $"Rand links do not match, expected: {originalRandId}, actual: {currentRandId}";
+                        return false;
+                    }
+                }
+
+                if (currentNode.Data != originalCurrentNode.Data)
+                {
+                    reason =
+                        $"Data strings do not match, original: {originalCurrentNode.Data}, new: {currentNode.Data}, index: {index}";
+                    return false;
+                }
+
+                originalNodeIds[originalCurrentNode] = index;
+                currentNodeIds[currentNode] = index;
+                currentNode = currentNode.Next;
+                originalCurrentNode = originalCurrentNode.Next;
+                index++;
+            }
+
+
+            return index == original.Count;
+        }
+
         public static void Main(string[] args)
         {
             var listRand = CreateListRand();
@@ -53,47 +150,6 @@ namespace ListSorted
 
                 var isIntegrityIntact = CheckIntegrity(listRand, listFromFile, out var reason);
                 Console.WriteLine(isIntegrityIntact ? "List integrity is intact" : $"List integrity failed: {reason}");
-            }
-
-            bool CheckIntegrity(ListRand original, ListRand other, out string reason)
-            {
-                reason = "";
-                
-                if (original.Count != other.Count)
-                {
-                    reason = $"List item counts do not match, original: {original.Count}, new {other.Count}";
-                    return false;
-                }
-
-                if (other.Head == null)
-                {
-                    reason = "Head is null";
-                    return false;
-                }
-
-                if (other.Tail == null)
-                {
-                    reason = "Tail is null";
-                    return false;
-                }
-
-                var currentNode = other.Head;
-                var originalCurrentNode = original.Head;
-                var index = 0;
-                while (currentNode != null)
-                {
-                    if (currentNode.Data != originalCurrentNode.Data)
-                    {
-                        reason = $"Data strings do not match, original: {originalCurrentNode.Data}, new: {currentNode.Data}, node index: {index}";
-                        return false;
-                    }
-                    
-                    currentNode = currentNode.Next;
-                    originalCurrentNode = originalCurrentNode.Next;
-                    index++;
-                }
-
-                return true;
             }
         }
 
@@ -117,18 +173,13 @@ namespace ListSorted
                 void TryWrite(byte[] data)
                 {
                     if (!s.CanWrite)
-                    {
                         throw new Exception("Could not write data to fileStream: stream is not available for writing");
-                    }
-                    
+
                     s.Write(data, 0, data.Length);
                 }
 
-                if (s.Position != 0)
-                {
-                    s.Seek(0, SeekOrigin.Begin);
-                }
-                
+                if (s.Position != 0) s.Seek(0, SeekOrigin.Begin);
+
                 //Assign ids to each of the nodes in the list:
                 var id = 0;
                 var nodeIds = new Dictionary<ListNode, int>();
@@ -139,7 +190,7 @@ namespace ListSorted
                     id++;
                     currentNode = currentNode.Next;
                 }
-                
+
                 TryWrite(BitConverter.GetBytes(Count));
                 currentNode = Head;
                 while (currentNode != null)
@@ -149,7 +200,7 @@ namespace ListSorted
                     TryWrite(dataBytes);
                     var linkedIndex = currentNode.Rand != null ? nodeIds[currentNode.Rand] : -1;
                     TryWrite(BitConverter.GetBytes(linkedIndex));
-                    
+
                     currentNode = currentNode.Next;
                 }
             }
@@ -159,20 +210,15 @@ namespace ListSorted
                 byte[] TryRead(int byteCount)
                 {
                     if (!s.CanRead)
-                    {
                         throw new Exception("Could not read from file stream: file is not available for reading");
-                    }
 
                     var buffer = new byte[byteCount];
                     s.Read(buffer, 0, byteCount);
                     return buffer;
                 }
-                
-                if (s.Position != 0)
-                {
-                    s.Seek(0, SeekOrigin.Begin);
-                }
-                
+
+                if (s.Position != 0) s.Seek(0, SeekOrigin.Begin);
+
                 //Read Item Count from stream
                 var count = BitConverter.ToInt32(TryRead(4), 0);
                 Count = count;
@@ -185,8 +231,7 @@ namespace ListSorted
                 {
                     var dataBytesCount = BitConverter.ToInt32(TryRead(4), 0);
                     var data = Encoding.UTF8.GetString(TryRead(dataBytesCount));
-                    var linkedNode = -1;
-                    BitConverter.ToInt32(TryRead(4), 0);
+                    var linkedNode = BitConverter.ToInt32(TryRead(4), 0);
 
                     var node = new ListNode
                     {
@@ -205,19 +250,10 @@ namespace ListSorted
                     var node = nodes[i];
                     var linkedNode = linkedNodes[i];
 
-                    if (i > 0)
-                    {
-                        node.Prev = nodes[i - 1];
-                    }
-                    
-                    if (i < count - 1)
-                    {
-                        node.Next = nodes[i + 1];
-                    }
-                    if (linkedNode >= 0)
-                    {
-                        node.Rand = nodes[linkedNode];
-                    }
+                    if (i > 0) node.Prev = nodes[i - 1];
+
+                    if (i < count - 1) node.Next = nodes[i + 1];
+                    if (linkedNode >= 0) node.Rand = nodes[linkedNode];
                 }
             }
         }
